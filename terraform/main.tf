@@ -11,10 +11,12 @@ provider "aws" {
   region = "us-east-1"
 }
 
+# 1. Create S3 Bucket
 resource "aws_s3_bucket" "website_bucket" {
   bucket_prefix = "my-website-bucket-"
 }
 
+# Block public access directly to S3
 resource "aws_s3_bucket_public_access_block" "website_bucket_block" {
   bucket                  = aws_s3_bucket.website_bucket.id
   block_public_acls       = true
@@ -23,13 +25,15 @@ resource "aws_s3_bucket_public_access_block" "website_bucket_block" {
   restrict_public_buckets = true
 }
 
+# 2. Origin Access Control (OAC) with Unique Name Fix
 resource "aws_cloudfront_origin_access_control" "oac" {
-  name                              = "s3-oac"
+  name                              = "s3-oac-${aws_s3_bucket.website_bucket.id}"
   origin_access_control_origin_type = "s3"
   signing_behavior                  = "always"
   signing_protocol                  = "sigv4"
 }
 
+# 3. S3 Bucket Policy to allow CloudFront Access
 resource "aws_s3_bucket_policy" "allow_cloudfront" {
   bucket = aws_s3_bucket.website_bucket.id
   policy = jsonencode({
@@ -51,6 +55,7 @@ resource "aws_s3_bucket_policy" "allow_cloudfront" {
   })
 }
 
+# 4. CloudFront Distribution
 resource "aws_cloudfront_distribution" "cdn" {
   enabled             = true
   default_root_object = "index.html"
@@ -83,11 +88,11 @@ resource "aws_cloudfront_distribution" "cdn" {
   }
 }
 
-output "cloudfront_url" {
-  value = aws_cloudfront_distribution.cdn.domain_name
-}
-
+# Outputs
 output "s3_bucket_name" {
   value = aws_s3_bucket.website_bucket.id
 }
 
+output "cloudfront_url" {
+  value = aws_cloudfront_distribution.cdn.domain_name
+}
