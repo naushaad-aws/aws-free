@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -17,6 +18,7 @@ jobs:
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.9.0
+          terraform_wrapper: false
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -35,7 +37,5 @@ jobs:
 
       - name: Sync App Files to S3
         run: |
-          BUCKET_NAME=$(terraform output -raw s3_bucket_name)
+          BUCKET_NAME=$(terraform -chdir=./terraform output -raw s3_bucket_name)
           aws s3 sync . s3://$BUCKET_NAME --exclude "terraform/*" --exclude ".git/*" --exclude ".github/*"
-        working-directory: ./
-
