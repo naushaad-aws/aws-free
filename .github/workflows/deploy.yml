@@ -1,4 +1,4 @@
-name: Deploy Infrastructure and Web Application
+name: Destroy AWS Infrastructure
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  deploy:
+  destroy:
     runs-on: ubuntu-latest
 
     steps:
@@ -31,11 +31,14 @@ jobs:
         run: terraform init
         working-directory: ./terraform
 
-      - name: Terraform Apply
-        run: terraform apply -auto-approve
+      - name: Empty S3 Bucket First
+        run: |
+          BUCKET_NAME=$(terraform -chdir=./terraform output -raw s3_bucket_name || true)
+          if [ -n "$BUCKET_NAME" ]; then
+            aws s3 rm s3://$BUCKET_NAME --recursive || true
+          fi
+
+      - name: Terraform Destroy
+        run: terraform destroy -auto-approve
         working-directory: ./terraform
 
-      - name: Sync App Files to S3
-        run: |
-          BUCKET_NAME=$(terraform -chdir=./terraform output -raw s3_bucket_name)
-          aws s3 sync . s3://$BUCKET_NAME --exclude "terraform/*" --exclude ".git/*" --exclude ".github/*"
